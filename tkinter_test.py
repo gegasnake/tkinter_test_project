@@ -1,6 +1,8 @@
 import hashlib
 import sqlite3
 import tkinter as tk
+from tkPDFViewer import tkPDFViewer as pdf
+
 
 LARGE_FONT = ("Verdana", 12)
 connection_obj = sqlite3.connect('users.db')
@@ -22,7 +24,7 @@ class GUI(tk.Tk):
 
 		self.frames = {}
 
-		for F in (LoginPage, PageRegister, StartPage, MainPage):
+		for F in (LoginPage, PageRegister, StartPage, MainPage, Alevel, Gcse, Cs, Algorithms, cs1, Quiz1, Revise1):
 
 			frame = F(container, self)
 
@@ -185,13 +187,98 @@ class MainPage(tk.Frame):
 		title2 = tk.Label(self, text="please, pick a course!", font=30)
 		title2.pack(padx=10, pady=30)
 		course1 = tk.Button(self, text="A-level", command=lambda: controller.show_frame(Alevel))
+		course1.pack(padx=10, pady=30)
+		course2 = tk.Button(self, text="GCSE", command=lambda: controller.show_frame(Gcse))
+		course2.pack(padx=10, pady=30)
 
 
 class Alevel(tk.Frame):
 
 	def __init__(self, parent, controller):
 		tk.Frame.__init__(self, parent)
-		
+		title = tk.Label(self, text="Choose the topic:", font=70)
+		title.pack(padx=10, pady=50)
+		alevel_computer_system_button = tk.Button(self, text="Computer Systems", font=40, command=lambda: controller.show_frame(Cs))
+		alevel_computer_system_button.pack(padx=10, pady=30)
+		alevel_algorithm_button = tk.Button(self, text="Algorithms and programming", font=40, command=lambda: controller.show_frame(Algorithms))
+		alevel_algorithm_button.pack(padx=10, pady=30)
+		back_to_courses = tk.Button(self, text="Back to courses!", font=30, command=lambda: controller.show_frame(MainPage))
+		back_to_courses.pack(padx=10, pady=30)
+
+
+class Gcse(tk.Frame):
+
+	def __init__(self, parent, controller):
+		tk.Frame.__init__(self, parent)
+		now = tk.Label(self, text="Work In Progress!", font=30)
+		now.pack(padx=10, pady=30)
+		back_to_courses = tk.Button(self, text="Back to courses!", font=30,
+									command=lambda: controller.show_frame(MainPage))
+		back_to_courses.pack(padx=10, pady=30)
+
+
+class Cs(tk.Frame):
+
+	def __init__(self, parent, controller):
+		tk.Frame.__init__(self, parent)
+		characteristics_of_contemporary_processors = tk.Button(self, text="Characteristics of\n contemporary processors",
+															   bg='#CCE5FF', font=30, command=lambda: controller.show_frame(cs1))
+		characteristics_of_contemporary_processors.pack(padx=10, pady=30)
+		software_and_development = tk.Button(self, text="Software and\n software development", bg="#CCE5FF", font=30, width=22)
+		software_and_development.pack(padx=10, pady=30)
+		exchanging_data = tk.Button(self, text="Exchanging data", font=30, width=22, bg='#CCE5FF')
+		exchanging_data.pack(padx=10, pady=30)
+		data_types = tk.Button(self, text="Data types", font=30, width=22, bg='#CCE5FF')
+		data_types.pack(padx=10, pady=30)
+		issues = tk.Button(self, text="Characteristics of\n contemporary processors", font=30, width=22, bg='#CCE5FF')
+		issues.pack(padx=10, pady=30)
+		back = tk.Button(self, text="Go back", font=30, width=14, bg='#99CCFF', height=10,
+						 command=lambda: controller.show_frame(Alevel))
+		back.pack(padx=10, pady=20)
+
+
+class Algorithms(tk.Frame):
+
+	def __init__(self, parent, controller):
+		tk.Frame.__init__(self, parent)
+		elements_of_computational_thinking = tk.Button(self, text="elements of\n computational thinking",
+															   bg='#CCE5FF', font=30, width=22)
+		elements_of_computational_thinking.pack(padx=10, pady=30)
+		problem_solving = tk.Button(self, text="problem solving\n and programming",
+													   bg='#CCE5FF', font=30, width=22)
+		problem_solving.pack(padx=10, pady=30)
+		Algorithms = tk.Button(self, text="Algorithms", bg='#CCE5FF', font=30, width=22)
+		Algorithms.pack(padx=10, pady=30)
+		back = tk.Button(self, text="Go back", font=30, width=14, bg='#99CCFF',
+						 command=lambda: controller.show_frame(Alevel))
+		back.pack(padx=10, pady=40)
+
+
+class cs1(tk.Frame):
+
+	def __init__(self, parent, controller):
+		tk.Frame.__init__(self, parent)
+		revise = tk.Button(self, text="revision", font=30, width=22, height=10, command=lambda: controller.show_frame(Revise1))
+		revise.grid(row=0, column=0, pady=100)
+		quiz = tk.Button(self, text="quiz", font=30, width=22, height=10, command=lambda: controller.show_frame(Quiz1))
+		quiz.grid(row=0, column=1, padx=105, pady=100)
+
+
+class Revise1(tk.Frame):
+
+	def __init__(self, parent, controller):
+		tk.Frame.__init__(self, parent)
+		show_pdf = pdf.ShowPdf()
+		pdf1 = show_pdf.pdf_view(self, pdf_location=r"pdfs/pd1.pdf", width=100, height=100)
+		pdf1.pack()
+
+
+class Quiz1(tk.Frame):
+
+	def __init__(self, parent, controller):
+		tk.Frame.__init__(self, parent)
+
+
 
 app = GUI()
 app.mainloop()
