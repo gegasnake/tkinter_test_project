@@ -16,31 +16,20 @@ class GUI(tk.Tk):
 
 	def __init__(self, *args, **kwargs):
 		tk.Tk.__init__(self, *args, **kwargs)
-		container = tk.Frame(self)
+		self.container = tk.Frame(self)
 		self.winfo_toplevel().title("CS Revise")
 		self.winfo_toplevel().geometry("600x600")
-		container.pack(side="top", fill="both", expand=True)
+		self.container.pack(side="top", fill="both", expand=True)
 
-		container.grid_rowconfigure(0, weight=1)
-		container.grid_columnconfigure(0, weight=1)
-
-		self.frames = {}
-
-		for F in (LoginPage, PageRegister, StartPage, MainPage, Alevel, Gcse, Cs,
-				   Algorithms, cs1, Quiz1,
-				   Revise1, cs1_revise1_pdf1, cs1_revise1_pdf2, cs1_revise1_pdf3):
-
-			frame = F(container, self)
-
-			self.frames[F] = frame
-
-			frame.grid(row=0, column=0, sticky="nsew")
+		self.container.grid_rowconfigure(0, weight=1)
+		self.container.grid_columnconfigure(0, weight=1)
 
 		self.show_frame(StartPage)
 
-	def show_frame(self, cont):
+	def show_frame(self, frame_class):
 
-		frame = self.frames[cont]
+		frame = frame_class(self.container, self)
+		frame.grid(row=0, column=0, sticky="nsew")
 		frame.tkraise()
 
 	def create_quiz(self, cls, data, quiz_title):
