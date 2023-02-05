@@ -26,16 +26,19 @@ class GUI(tk.Tk):
 
 		self.show_frame(StartPage)
 
+		self.user = ''
+
 	def show_frame(self, frame_class):
 
 		frame = frame_class(self.container, self)
 		frame.grid(row=0, column=0, sticky="nsew")
 		frame.tkraise()
 
-	def create_quiz(self, cls, data, quiz_title):
+	def create_quiz(self, data, quiz_title):
 		gui = Tk()
 		gui.geometry("800x450")
 		gui.title(quiz_title)
+
 		with open(data) as f:
 			info = json.load(f)
 
@@ -97,7 +100,6 @@ class GUI(tk.Tk):
 
 		# return the radio buttons
 		return q_list
-
 
 	# This method is used to Display Title
 	def display_title(self, gui):
@@ -187,6 +189,11 @@ class GUI(tk.Tk):
 		score = int(self.correct / self.data_size * 100)
 		result = f"Score: {score}%"
 
+		cursor_obj.execute(''' INSERT INTO SCORES(Username, Correct, Wrong) VALUES(?,?,?) ''', (
+			self.user[0],
+			self.correct,
+			wrong_count))
+		connection_obj.commit()
 		# Shows a message box to display the result
 		mb.showinfo("Result", f"{result}\n{correct}\n{wrong}")
 
@@ -245,8 +252,9 @@ class GUI(tk.Tk):
 		if cursor_obj.execute(query_to_receive_info_of_the_user, (email_info, hashed)).fetchone():
 			self.show_frame(MainPage)
 
-			user = cursor_obj.execute(query_to_receive_username, (email_info, hashed)).fetchone()
-			return user
+			self.user = cursor_obj.execute(query_to_receive_username, (email_info, hashed)).fetchone()
+			print(self.user)
+			return self.user
 
 		else:
 			login_email_entry.delete(0, tk.END)
@@ -256,11 +264,10 @@ class GUI(tk.Tk):
 			self.after(4000, lambda: incorrect_credential_message.destroy())
 
 
-
 class LoginPage(tk.Frame):
 
 	def __init__(self, parent, controller):
-		tk.Frame.__init__(self, parent)
+		super().__init__(parent)
 
 		email_login = tk.StringVar()
 		password_login = tk.StringVar()
@@ -350,6 +357,7 @@ class MainPage(tk.Frame):
 		course2.pack(padx=10, pady=30)
 
 
+
 class Alevel(tk.Frame):
 
 	def __init__(self, parent, controller):
@@ -419,7 +427,7 @@ class cs1(tk.Frame):
 		tk.Frame.__init__(self, parent)
 		revise = tk.Button(self, text="revision", font=30, width=22, height=10, command=lambda: controller.show_frame(Revise1))
 		revise.grid(row=0, column=0, pady=100)
-		quiz = tk.Button(self, text="quiz", font=30, width=22, height=10, command=lambda: controller.create_quiz(Quiz1, "data.json", "computer science"))
+		quiz = tk.Button(self, text="quiz", font=30, width=22, height=10, command=lambda: controller.create_quiz("data.json", "computer science"))
 		quiz.grid(row=0, column=1, padx=105, pady=100)
 
 		back_to_cs = tk.Button(self, text="Back to cs", font=30, width=22, height=10, command=lambda: controller.show_frame(Cs))
@@ -495,8 +503,9 @@ class Quiz1(tk.Frame):
 	def __init__(self, parent, controller):
 		tk.Frame.__init__(self, parent)
 
-
 # ****************************************************************************
+
+
 app = GUI()
 app.mainloop()
 
