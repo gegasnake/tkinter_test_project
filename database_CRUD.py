@@ -11,22 +11,35 @@ table_users = """ CREATE TABLE IF NOT EXISTS USERS(
             )
 """
 
+table_Quizes = """ CREATE TABLE IF NOT EXISTS QUIZES(
+                    Quiz_ID INTEGER PRIMARY KEY,
+                    Course INT NOT NULL,
+                    Main_Topic INT NOT NULL,
+                    Topic INT NOT NULL,
+                    Jason_file TEXT NOT NULL
+                )
+"""
+
 table_scores = """ CREATE TABLE IF NOT EXISTS SCORES(
-                ID INTEGER PRIMARY KEY,
+                Score_ID INTEGER PRIMARY KEY,
                 Username TEXT NOT NULL,
                 Correct INT NOT NULL,
-                Wrong INT NOT NULL
+                Wrong INT NOT NULL,
+                Quiz_ID INT,
+                FOREIGN KEY (Quiz_ID) references QUIZES(Quiz_ID)
                 )
 """
 
 sel = """SELECT * FROM USERS"""
-delete = """DELETE FROM USERS"""
-drop = """DROP TABLE USERS"""
+delete_users = """DELETE FROM USERS"""
+delete_scores = """DELETE FROM SCORES"""
+drop = """DROP TABLE SCORES"""
 check_user = '''SELECT Username FROM USERS WHERE Username=?'''
 
+
 cursor_obj.execute(table_users)
+cursor_obj.execute(table_Quizes)
 cursor_obj.execute(table_scores)
-# cursor_obj.execute(delete)
-print(cursor_obj.execute(check_user, ("jora",)).fetchone())
+cursor_obj.execute(delete_scores)
 connection_obj.commit()
 
