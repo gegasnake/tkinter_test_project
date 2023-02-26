@@ -104,14 +104,14 @@ class GUI(tk.Tk):
             incorrect_credential_message.pack(pady=10)
             self.after(4000, lambda: incorrect_credential_message.destroy())
 
-    def display_selected(self, choice, username):
+    def display_selected(self, choice):
         choice = choice
         print(choice)
         correct_query = """SELECT Correct FROM SCORES WHERE Username=? AND Quiz_ID=? ORDER BY Score_ID DESC LIMIT 1"""
-        if cursor_obj.execute(correct_query, (username, int(choice[-1]))).fetchone():
-            correct = cursor_obj.execute(correct_query, (username, int(choice[-1]))).fetchone()[0]
+        if cursor_obj.execute(correct_query, (self.user[0], int(choice[-1]))).fetchone():
+            correct = cursor_obj.execute(correct_query, (self.user[0], int(choice[-1]))).fetchone()[0]
             wrong_query = """SELECT Wrong FROM SCORES WHERE Username=? AND Quiz_ID=? ORDER BY Score_ID  DESC LIMIT 1"""
-            wrong = cursor_obj.execute(wrong_query, (username, int(choice[-1]))).fetchone()[0]
+            wrong = cursor_obj.execute(wrong_query, (self.user[0], int(choice[-1]))).fetchone()[0]
             score = int(correct / 10 * 100)
             result = f"Score: {score}%"
             mb.showinfo("Result", f"{result}\n{correct}\n{wrong}")
@@ -473,7 +473,7 @@ class Profile(tk.Frame):
         variable.set("Quizes")  # default value
 
         w = OptionMenu(self, variable, "Quiz1", "Quiz2", "Quiz3",
-                       command=lambda choice: controller.display_selected(variable.get(), controller.user[0]))
+                       command=lambda choice: controller.display_selected(variable.get()))
         w.pack()
 
         back_to_main = tk.Button(self, text="Back to Main Page", command=lambda: controller.show_frame(MainPage))
