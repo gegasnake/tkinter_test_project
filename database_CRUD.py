@@ -33,6 +33,7 @@ table_scores = """ CREATE TABLE IF NOT EXISTS SCORES(
 sel = """SELECT * FROM USERS"""
 delete_users = """DELETE FROM USERS"""
 delete_scores = """DELETE FROM SCORES"""
+delete_quizes = """DELETE FROM QUIZES"""
 drop = """DROP TABLE SCORES"""
 check_user = '''SELECT Username FROM USERS WHERE Username=?'''
 
@@ -40,6 +41,6 @@ check_user = '''SELECT Username FROM USERS WHERE Username=?'''
 cursor_obj.execute(table_users)
 cursor_obj.execute(table_Quizes)
 cursor_obj.execute(table_scores)
-cursor_obj.execute(delete_scores)
+# cursor_obj.execute(delete_quizes)
 connection_obj.commit()
 
