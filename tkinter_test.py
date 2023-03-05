@@ -2,10 +2,11 @@ import hashlib
 import sqlite3
 import tkinter as tk
 from tkPDFViewer import tkPDFViewer as pdf
-import json
 from tkinter import *
 from tkinter import messagebox as mb
 import random
+from tkinter import ttk
+import json
 
 LARGE_FONT = ("Verdana", 12)
 connection_obj = sqlite3.connect('users.db')
@@ -118,19 +119,34 @@ class GUI(tk.Tk):
         else:
             mb.showinfo("Hello user!", "You haven't taken this Quiz yet.")
 
+    def check_progress(self):
+        progress = 0
+        print(cursor_obj.execute("SELECT Correct FROM SCORES WHERE Username=?", (self.user[0],)).fetchall())
+        for i in cursor_obj.execute("SELECT Correct FROM SCORES WHERE Username=?", (self.user[0],)).fetchall():
+            if i[0] >= 8:
+                progress += 1
+
+        return progress / 8 * 100
+
 
 class PDF(tk.Toplevel):
-    def __init__(self, file):
-        self.file = file
+    def __init__(self):
         super().__init__()
+        self.pdf_viewer = pdf.ShowPdf()
 
-    def show_file(self):
-        show_pdf = pdf.ShowPdf()
-        pdf1 = show_pdf.pdf_view(self, pdf_location=self.file, width=80, height=50)
+    def show_file(self, new_file):
+        self.pdf_viewer.img_object_li = []
+        self.pdf1 = None
+
+        pdf1 = self.pdf_viewer.pdf_view(self, pdf_location=new_file, width=80, height=50)
         pdf1.pack(padx=10, pady=10)
         back_to_revise = tk.Button(self, text="back to revise", font=30, width=22, height=3,
                                    command=lambda: self.destroy())
         back_to_revise.pack(padx=10, pady=30)
+
+        self.pdf1 = new_file
+
+        print(self.pdf1)
 
 
 class LoginPage(tk.Frame):
@@ -172,36 +188,42 @@ class Quiz(tk.Toplevel):
         self.correct = 0
         self.count = 0
         self.t = StringVar()
-        super().__init__()
-
-    def run(self):
-        self.title(self.quiz_title)
-        self.geometry("900x700")
-
         with open(self.data) as f:
             info = json.load(f)
 
         temp = list(zip(info['questions'], info['answers'], info['options']))
         random.shuffle(temp)
         questions, answers, options = zip(*temp)
-        self.question = questions
-        self.answer = answers
-        self.options = options
+        self.questions = questions[:10]
+        self.answers = answers[:10]
+        self.options = options[:10]
         # no of questions
-        self.data_size = len(self.question)
+        self.data_size = len(self.questions)
+
+        # dictionary of questions which were answered incorrectly
+        self.wrong_answered_questions = {
+            "questions": [],
+            "answers": [],
+            "options": []
+        }
 
         get_quiz_id = """SELECT Quiz_ID FROM QUIZES WHERE Jason_file=?"""
         self.quiz_id = cursor_obj.execute(get_quiz_id, (self.data,)).fetchone()[0]
-
         # set question number to 0
         self.q_no = 0
-        # assigns ques to the display_question function to update later.
-        self.display_title()
-        self.display_question()
-
         # opt_selected holds an integer value which is used for
         # selected option in a question.
         self.opt_selected = IntVar()
+
+        super().__init__()
+
+    def run(self):
+        self.title(self.quiz_title)
+        self.geometry("900x700")
+
+        # assigns ques to the display_question function to update later.
+        self.display_title()
+        self.display_question()
 
         # displaying radio button for the current question and used to
         # display options for the current question
@@ -254,8 +276,7 @@ class Quiz(tk.Toplevel):
             if self.count == 0:
                 self.after(1000, self.timer)
 
-        # This method shows the radio buttons to select the Question
-
+    # This method shows the radio buttons to select the Question
     # on the screen at the specified position. It also returns a
     # list of radio button which are later used to add the options to
     # them.
@@ -295,7 +316,7 @@ class Quiz(tk.Toplevel):
         title.place(x=0, y=2)
 
     def display_question(self):
-        question = "Q" + str(self.q_no + 1) + "." + self.question[self.q_no]
+        question = "Q" + str(self.q_no + 1) + "." + self.questions[self.q_no]
         # setting the Question properties
         q_no = Label(self, text=question, width=60, font=('ariel', 16, 'bold'), anchor='w')
 
@@ -337,6 +358,11 @@ class Quiz(tk.Toplevel):
         if self.check_ans():
             # if the answer is correct it increments the correct by 1
             self.correct += 1
+        else:
+            self.wrong_answered_questions["questions"].append(self.questions[self.q_no])
+            self.wrong_answered_questions["answers"].append(self.answers[self.q_no])
+            self.wrong_answered_questions["options"].append(self.options[self.q_no])
+            print(self.wrong_answered_questions)
 
         # Moves to next Question by incrementing the q_no counter
         self.q_no += 1
@@ -356,7 +382,7 @@ class Quiz(tk.Toplevel):
     def check_ans(self):
 
         # checks for if the selected option is correct
-        if self.opt_selected.get() == self.answer[self.q_no]:
+        if self.opt_selected.get() == self.answers[self.q_no]:
             # if the option is correct it returns true
             return True
 
@@ -366,18 +392,26 @@ class Quiz(tk.Toplevel):
         correct = f"Correct: {self.correct}"
         wrong = f"Wrong: {wrong_count}"
 
-        # calcultaes the percentage of correct answers
+        # calculates the percentage of correct answers
         score = int(self.correct / self.data_size * 100)
         result = f"Score: {score}%"
 
-        cursor_obj.execute(''' INSERT INTO SCORES(Username, Correct, Wrong, Quiz_ID) VALUES(?,?,?,?) ''', (
-            self.user,
-            self.correct,
-            wrong_count,
-            quiz_id,
-        ))
-        connection_obj.commit()
-        # Shows a message box to display the result
+        if cursor_obj.execute('''SELECT * FROM SCORES WHERE Quiz_ID=? AND Username=?''',
+                              (quiz_id, self.user)).fetchone():
+            cursor_obj.execute('''UPDATE SCORES SET Correct=?, Wrong=? WHERE Username=?''',
+                               (self.correct, wrong_count, self.user,))
+            connection_obj.commit()
+        else:
+
+            cursor_obj.execute(''' INSERT INTO SCORES(Username, Correct, Wrong, Quiz_ID) VALUES(?,?,?,?) ''', (
+                self.user,
+                self.correct,
+                wrong_count,
+                quiz_id,
+            ))
+            connection_obj.commit()
+
+        print(self.wrong_answered_questions)
         mb.showinfo("Result", f"{result}\n{correct}\n{wrong}")
 
 
@@ -467,8 +501,6 @@ class Profile(tk.Frame):
         receive_email = cursor_obj.execute(query_to_receive_email, (controller.user[0],)).fetchone()[0]
         email = tk.Label(self, text="Email:    " + receive_email, font=30)
         email.pack(padx=10, pady=30)
-        # score = tk.Label(self, text="Score: " + str(controller.score[0]), font=30)
-        # score.pack(padx=10, pady=30)
         variable = StringVar()
         variable.set("Quizes")  # default value
 
@@ -476,25 +508,24 @@ class Profile(tk.Frame):
                        command=lambda choice: controller.display_selected(variable.get()))
         w.pack()
 
+        # Create progress bar
+        progress_num = controller.check_progress()
+        progress_label = tk.Label(self, text="Progress:")
+        progress_label.pack(padx=10, pady=20)
+        progress_bar = ttk.Progressbar(self, orient="horizontal", mode="determinate", length=300, value=progress_num)
+        progress_bar.pack(padx=10, pady=10)
+
+        # rehearse_quiz_variable = StringVar()
+        # rehearse_quiz_variable.set("Rehearse Quizes")
+
+        # rehearse the quiz by doing the wrong questions
+        # w2 = OptionMenu(self, rehearse_quiz_variable, "rehearse_Quiz1", "rehearse_Quiz2", "rehearse_Quiz3",
+        #               command=lambda choice: Quiz(rehearse_quiz_variable.get(), controller.user[0],
+        #                                           "rehearse_quizes/" + rehearse_quiz_variable.get() + ".json").run())
+        # w2.pack()
+
         back_to_main = tk.Button(self, text="Back to Main Page", command=lambda: controller.show_frame(MainPage))
         back_to_main.pack(padx=10, pady=40)
-
-
-class Alevel(tk.Frame):
-
-    def __init__(self, parent, controller):
-        tk.Frame.__init__(self, parent)
-        title = tk.Label(self, text="Choose a topic:", font=70)
-        title.pack(padx=10, pady=50)
-        alevel_computer_system_button = tk.Button(self, text="Computer Systems", font=40,
-                                                  command=lambda: controller.show_frame(Cs))
-        alevel_computer_system_button.pack(padx=10, pady=30)
-        alevel_algorithm_button = tk.Button(self, text="Algorithms and programming", font=40,
-                                            command=lambda: controller.show_frame(Algorithms))
-        alevel_algorithm_button.pack(padx=10, pady=30)
-        back_to_courses = tk.Button(self, text="Back to courses!", font=30,
-                                    command=lambda: controller.show_frame(MainPage))
-        back_to_courses.pack(padx=10, pady=30)
 
 
 class Gcse(tk.Frame):
@@ -509,27 +540,252 @@ class Gcse(tk.Frame):
         back_to_courses.pack(padx=10, pady=30)
 
 
-class Cs(tk.Frame):
+class Alevel(tk.Frame):
+
+    def __init__(self, parent, controller):
+        tk.Frame.__init__(self, parent)
+        title = tk.Label(self, text="Choose a topic:", font=70)
+        title.pack(padx=10, pady=50)
+        alevel_computer_system_button = tk.Button(self, text="Computer Systems", font=40,
+                                                  command=lambda: controller.show_frame(ComputerScience))
+        alevel_computer_system_button.pack(padx=10, pady=30)
+        alevel_algorithm_button = tk.Button(self, text="Algorithms and programming", font=40,
+                                            command=lambda: controller.show_frame(Algorithms))
+        alevel_algorithm_button.pack(padx=10, pady=30)
+        back_to_courses = tk.Button(self, text="Back to courses!", font=30,
+                                    command=lambda: controller.show_frame(MainPage))
+        back_to_courses.pack(padx=10, pady=30)
+
+
+class ComputerScience(tk.Frame):
 
     def __init__(self, parent, controller):
         tk.Frame.__init__(self, parent)
         characteristics_of_contemporary_processors = tk.Button(self,
                                                                text="Characteristics of\n contemporary processors",
                                                                bg='#CCE5FF', font=30,
-                                                               command=lambda: controller.show_frame(Cs1))
+                                                               command=lambda:
+                                                               controller.show_frame(CharacteristicsOfContemporaryProcessors))
         characteristics_of_contemporary_processors.pack(padx=10, pady=30)
         software_and_development = tk.Button(self, text="Software and\n software development",
-                                             bg="#CCE5FF", font=30, width=22)
+                                             bg="#CCE5FF", font=30, width=22,
+                                             command=lambda: controller.show_frame(SoftwareAndSoftwareDevelopment))
         software_and_development.pack(padx=10, pady=30)
-        exchanging_data = tk.Button(self, text="Exchanging data", font=30, width=22, bg='#CCE5FF')
+        exchanging_data = tk.Button(self, text="Exchanging data", font=30, width=22, bg='#CCE5FF',
+                                    command=lambda: controller.show_frame(ExchangingData))
         exchanging_data.pack(padx=10, pady=30)
-        data_types = tk.Button(self, text="Data types", font=30, width=22, bg='#CCE5FF')
+        data_types = tk.Button(self, text="Data types", font=30, width=22, bg='#CCE5FF',
+                               command=lambda: controller.show_frame(DataTypes))
         data_types.pack(padx=10, pady=30)
-        issues = tk.Button(self, text="Characteristics of\n contemporary processors", font=30, width=22, bg='#CCE5FF')
+        issues = tk.Button(self, text="Legal, Moral, Cultural\n and Ethical Issues", font=30, width=22, bg='#CCE5FF',
+                           command=lambda: controller.show_frame(Issues))
         issues.pack(padx=10, pady=30)
         back = tk.Button(self, text="Go back", font=30, width=14, bg='#99CCFF', height=10,
                          command=lambda: controller.show_frame(Alevel))
         back.pack(padx=10, pady=20)
+
+
+# *********************************************************************
+class CharacteristicsOfContemporaryProcessors(tk.Frame):
+
+    def __init__(self, parent, controller):
+        tk.Frame.__init__(self, parent)
+        revise = tk.Button(self, text="revision", font=30, width=22, height=10,
+                           command=lambda: controller.show_frame(ReviseCharacteristicsOfContemporaryProcessors))
+        revise.grid(row=0, column=0, pady=100)
+        quiz = tk.Button(self, text="quiz", font=30, width=22, height=10,
+                         command=lambda: Quiz("Quiz1", controller.user[0], 'quizes/Quiz1.json').run())
+        quiz.grid(row=0, column=1, padx=105, pady=100)
+
+        back_to_cs = tk.Button(self, text="Back to cs", font=30, width=22, height=10,
+                               command=lambda: controller.show_frame(ComputerScience))
+        back_to_cs.place(x=150, y=370)
+
+
+class ReviseCharacteristicsOfContemporaryProcessors(tk.Frame):
+
+    def __init__(self, parent, controller):
+        tk.Frame.__init__(self, parent)
+        structure_and_function_of_the_processor = tk.Button(self, text="Structure and function\n of the processor",
+                                                            font=30, width=22, height=3,
+                                                            command=lambda: PDF().show_file(r"pdfs/CharacteristicsOfContemporaryProcessors/structure_and_function_of_the_processor.pdf"))
+        structure_and_function_of_the_processor.pack(padx=10, pady=30)
+        types_of_processor = tk.Button(self, text="Types of Processor", font=30, width=22, height=3,
+                                       command=lambda: PDF().show_file(r"pdfs/CharacteristicsOfContemporaryProcessors/types_of_processor.pdf"))
+        types_of_processor.pack(padx=10, pady=30)
+        input_output_storage = tk.Button(self, text="Input, Output and Storage",
+                                         font=30, width=22, height=3,
+                                         command=lambda: PDF().show_file(r"pdfs/CharacteristicsOfContemporaryProcessors/input_output_storage.pdf"))
+        input_output_storage.pack(padx=10, pady=30)
+
+        back_to_revise = tk.Button(self, text="Back to revision and quiz",
+                                         font=30, width=20, height=2,
+                                         command=lambda: controller.show_frame(CharacteristicsOfContemporaryProcessors))
+        back_to_revise.pack(padx=10, pady=30)
+
+
+# ****************************************************************************
+
+class SoftwareAndSoftwareDevelopment(tk.Frame):
+
+    def __init__(self, parent, controller):
+        tk.Frame.__init__(self, parent)
+        revise = tk.Button(self, text="revision", font=30, width=22, height=10,
+                            command=lambda: controller.show_frame(ReviseSoftwareAndSoftwareDevelopment))
+        revise.grid(row=0, column=0, pady=100)
+        quiz = tk.Button(self, text="quiz", font=30, width=22, height=10,
+                            command=lambda: Quiz("Quiz2", controller.user[0], 'quizes/Quiz2.json').run())
+        quiz.grid(row=0, column=1, padx=105, pady=100)
+
+        back_to_cs = tk.Button(self, text="Back to cs", font=30, width=22, height=10,
+                                command=lambda: controller.show_frame(ComputerScience))
+        back_to_cs.place(x=150, y=370)
+
+
+class ReviseSoftwareAndSoftwareDevelopment(tk.Frame):
+
+    def __init__(self, parent, controller):
+        tk.Frame.__init__(self, parent)
+        systems_software = tk.Button(self, text="Systems software",
+                                     font=30, width=22, height=3,
+                                     command=lambda: PDF().show_file(r"pdfs/SoftwareAndSoftwareDevelopment/systems_software.pdf"))
+        systems_software.pack(padx=10, pady=30)
+        applications_generation = tk.Button(self, text="Applications generation", font=30, width=22, height=3,
+                                            command=lambda: PDF(
+                                               ).show_file( r"pdfs/SoftwareAndSoftwareDevelopment/applications_generation.pdf"))
+        applications_generation.pack(padx=10, pady=30)
+        software_development = tk.Button(self, text="Software development",
+                                                font=30, width=22, height=3,
+                                                command=lambda: PDF(
+                                                    ).show_file(r"pdfs/SoftwareAndSoftwareDevelopment/software_development.pdf"))
+        software_development.pack(padx=10, pady=30)
+        types_of_programming_languages = tk.Button(self, text="Types of programming languages",
+                                         font=30, width=22, height=3,
+                                         command=lambda: PDF(
+                                         ).show_file(r"pdfs/SoftwareAndSoftwareDevelopment/types_of_programming_languages.pdf"))
+        types_of_programming_languages.pack(padx=10, pady=30)
+
+        back_to_revise = tk.Button(self, text="Back to revision and quiz",
+                                         font=30, width=20, height=2,
+                                         command=lambda: controller.show_frame(SoftwareAndSoftwareDevelopment))
+        back_to_revise.pack(padx=10, pady=30)
+
+# *************************************************************************************
+
+
+class ExchangingData(tk.Frame):
+    def __init__(self, parent, controller):
+        tk.Frame.__init__(self, parent)
+        revise = tk.Button(self, text="revision", font=30, width=22, height=10,
+                            command=lambda: controller.show_frame(ReviseExchangingData))
+        revise.grid(row=0, column=0, pady=100)
+        quiz = tk.Button(self, text="quiz", font=30, width=22, height=10,
+                            command=lambda: Quiz("Quiz3", controller.user[0], 'quizes/Quiz3.json').run())
+        quiz.grid(row=0, column=1, padx=105, pady=100)
+
+        back_to_cs = tk.Button(self, text="Back to cs", font=30, width=22, height=10,
+                                command=lambda: controller.show_frame(ComputerScience))
+        back_to_cs.place(x=150, y=370)
+
+
+class ReviseExchangingData(tk.Frame):
+    def __init__(self, parent, controller):
+        tk.Frame.__init__(self, parent)
+        compression_encryption_hashing = tk.Button(self, text="Compression Encryption Hashing", font=30, width=22, height=3, command=lambda: PDF(
+        ).show_file(r"pdfs/ExchangingData/compression_encryption_hashing.pdf"))
+        compression_encryption_hashing.pack(padx=10, pady=30)
+        databases = tk.Button(self, text="Databases", font=30, width=22, height=3, command=lambda: PDF(
+            ).show_file(r"pdfs/ExchangingData/databases.pdf"))
+        databases.pack(padx=10, pady=30)
+        networks = tk.Button(self, text="Networks", font=30, width=22, height=3,
+                            command=lambda: PDF().show_file(r"pdfs/ExchangingData/networks.pdf"))
+        networks.pack(padx=10, pady=30)
+        web_technologies = tk.Button(self, text="Web technologies",
+                                     font=30, width=22, height=3,
+                                     command=lambda: PDF().show_file( r"pdfs/ExchangingData/web_technologies.pdf"))
+        web_technologies.pack(padx=10, pady=30)
+
+        back_to_revise = tk.Button(self, text="Back to revision and quiz",
+                                         font=30, width=20, height=2,
+                                         command=lambda: controller.show_frame(ExchangingData))
+        back_to_revise.pack(padx=10, pady=30)
+
+# ***************************************************************************************
+
+
+class DataTypes(tk.Frame):
+    def __init__(self, parent, controller):
+        tk.Frame.__init__(self, parent)
+        revise = tk.Button(self, text="revision", font=30, width=22, height=10,
+                            command=lambda: controller.show_frame(ReviseDataTypes))
+        revise.grid(row=0, column=0, pady=100)
+        quiz = tk.Button(self, text="quiz", font=30, width=22, height=10,
+                            command=lambda: Quiz("Quiz4", controller.user[0], 'quizes/Quiz4.json').run())
+        quiz.grid(row=0, column=1, padx=105, pady=100)
+
+        back_to_cs = tk.Button(self, text="Back to cs", font=30, width=22, height=10,
+                                command=lambda: controller.show_frame(ComputerScience))
+        back_to_cs.place(x=150, y=370)
+
+
+class ReviseDataTypes(tk.Frame):
+
+    def __init__(self, parent, controller):
+        tk.Frame.__init__(self, parent)
+        data_types = tk.Button(self, text="Data types", font=30, width=22, height=3, command=lambda: PDF(
+            ).show_file(r"pdfs/DataTypes/data_types.pdf"))
+        data_types.pack(padx=10, pady=30)
+        data_structures = tk.Button(self, text="Data structures", font=30, width=22, height=3,
+                                    command=lambda: PDF(
+                                        ).show_file(r"pdfs/DataTypes/data_structures.pdf"))
+        data_structures.pack(padx=10, pady=30)
+        boolean_algebra = tk.Button(self, text="Boolean algebra",
+                                    font=30, width=22, height=3,
+                                    command=lambda: PDF(
+                                       ).show_file( r"pdfs/DataTypes/boolean_algebra.pdf"))
+        boolean_algebra.pack(padx=10, pady=30)
+
+        back_to_revise = tk.Button(self, text="Back to revision and quiz",
+                                         font=30, width=20, height=2,
+                                         command=lambda: controller.show_frame(DataTypes))
+        back_to_revise.pack(padx=10, pady=30)
+
+# ***************************************************************************************
+
+
+class Issues(tk.Frame):
+    def __init__(self, parent, controller):
+        tk.Frame.__init__(self, parent)
+        revise = tk.Button(self, text="revision", font=30, width=22, height=10,
+                           command=lambda: controller.show_frame(ReviseDataTypes))
+        revise.grid(row=0, column=0, pady=100)
+        quiz = tk.Button(self, text="quiz", font=30, width=22, height=10,
+                         command=lambda: Quiz("Quiz5", controller.user[0], 'quizes/Quiz5.json').run())
+        quiz.grid(row=0, column=1, padx=105, pady=100)
+
+        back_to_cs = tk.Button(self, text="Back to cs", font=30, width=22, height=10,
+                               command=lambda: controller.show_frame(ComputerScience))
+        back_to_cs.place(x=150, y=370)
+
+
+class ReviseIssues(tk.Frame):
+
+    def __init__(self, parent, controller):
+        tk.Frame.__init__(self, parent)
+        computing_related_legislation = tk.Button(self, text="Computing related legislation",
+                                                  font=30, width=22, height=3,
+                                                  command=lambda: PDF(
+                                                      ).show_file(r"pdfs/Issues/computing_related_legislation.pdf"))
+        computing_related_legislation.pack(padx=10, pady=30)
+        moral_and_ethical_issues = tk.Button(self, text="Moral and Ethical Issues", font=30, width=22, height=3,
+                                             command=lambda: PDF(
+                                                 ).show_file(r"pdfs/Issues/moral_and_ethical_issues.pdf"))
+        moral_and_ethical_issues.pack(padx=10, pady=30)
+
+        back_to_revise = tk.Button(self, text="Back to revision and quiz",
+                                         font=30, width=20, height=2,
+                                         command=lambda: controller.show_frame(Issues))
+        back_to_revise.pack(padx=10, pady=30)
 
 
 class Algorithms(tk.Frame):
@@ -537,57 +793,144 @@ class Algorithms(tk.Frame):
     def __init__(self, parent, controller):
         tk.Frame.__init__(self, parent)
         elements_of_computational_thinking = tk.Button(self, text="elements of\n computational thinking",
-                                                       bg='#CCE5FF', font=30, width=22)
+                                                       bg='#CCE5FF', font=30, width=22, command=lambda: controller.show_frame(ElementsOfComputationalThinking))
         elements_of_computational_thinking.pack(padx=10, pady=30)
         problem_solving = tk.Button(self, text="problem solving\n and programming",
-                                    bg='#CCE5FF', font=30, width=22)
+                                    bg='#CCE5FF', font=30, width=22, command=lambda: controller.show_frame(ProblemSolvingAndProgramming))
         problem_solving.pack(padx=10, pady=30)
-        algorithms = tk.Button(self, text="Algorithms", bg='#CCE5FF', font=30, width=22)
+        algorithms = tk.Button(self, text="Algorithms", bg='#CCE5FF', font=30, width=22, command=lambda: controller.show_frame(SubAlgorithms))
         algorithms.pack(padx=10, pady=30)
         back = tk.Button(self, text="Go back", font=30, width=14, bg='#99CCFF',
                          command=lambda: controller.show_frame(Alevel))
         back.pack(padx=10, pady=40)
 
 
-# *********************************************************************
-class Cs1(tk.Frame):
-
+class ElementsOfComputationalThinking(tk.Frame):
     def __init__(self, parent, controller):
         tk.Frame.__init__(self, parent)
         revise = tk.Button(self, text="revision", font=30, width=22, height=10,
-                           command=lambda: controller.show_frame(Revise1))
+                           command=lambda: controller.show_frame(ReviseElementsOfComputationalThinking))
         revise.grid(row=0, column=0, pady=100)
         quiz = tk.Button(self, text="quiz", font=30, width=22, height=10,
-                         command=lambda: Quiz("gamarjoba", controller.user[0], 'quizes/data.json').run())
+                         command=lambda: Quiz("Quiz6", controller.user[0], 'quizes/Quiz6.json').run())
         quiz.grid(row=0, column=1, padx=105, pady=100)
 
         back_to_cs = tk.Button(self, text="Back to cs", font=30, width=22, height=10,
-                               command=lambda: controller.show_frame(Cs))
+                               command=lambda: controller.show_frame(Algorithms))
         back_to_cs.place(x=150, y=370)
 
 
-class Revise1(tk.Frame):
-
+class ReviseElementsOfComputationalThinking(tk.Frame):
     def __init__(self, parent, controller):
         tk.Frame.__init__(self, parent)
-        structure_and_function_of_the_processor = tk.Button(self, text="Structure and function\n of the processor",
-                                                            font=30, width=22, height=3,
-                                                            command=lambda: PDF(r"pdfs/pd1.pdf").show_file())
-        structure_and_function_of_the_processor.pack(padx=10, pady=30)
-        types_of_processor = tk.Button(self, text="Types of Processor", font=30, width=22, height=3,
-                                       command=lambda: PDF(r"pdfs/pd2.pdf").show_file())
-        types_of_processor.pack(padx=10, pady=30)
-        input_output_storage = tk.Button(self, text="Input, Output and Storage",
-                                         font=30, width=22, height=3,
-                                         command=lambda: PDF(r"pdfs/pd3.pdf").show_file())
-        input_output_storage.pack(padx=10, pady=30)
+        thinking_abstractly = tk.Button(self, text="Thinking abstractly", font=30, width=22, height=1, command=lambda: PDF(
+        ).show_file(r"pdfs/ElementsOfComputationalThinking/thinking_abstractly.pdf"))
+        thinking_abstractly.pack(padx=10, pady=30)
+        thinking_ahead = tk.Button(self, text="Thinking ahead", font=30, width=22, height=1,
+                                    command=lambda: PDF(
+                                    ).show_file(r"pdfs/ElementsOfComputationalThinking/thinking_ahead.pdf"))
+        thinking_ahead.pack(padx=10, pady=30)
+        thinking_procedurally = tk.Button(self, text="Thinking procedurally",
+                                    font=30, width=22, height=1,
+                                    command=lambda: PDF(
+                                    ).show_file(r"pdfs/ElementsOfComputationalThinking/thinking_procedurally.pdf"))
+        thinking_procedurally.pack(padx=10, pady=30)
+        thinking_logically = tk.Button(self, text="Thinking logically",
+                                          font=30, width=22, height=1,
+                                          command=lambda: PDF(
+                                          ).show_file(r"pdfs/ElementsOfComputationalThinking/thinking_logically.pdf"))
+        thinking_logically.pack(padx=10, pady=30)
+        thinking_concurrently = tk.Button(self, text="Thinking concurrently",
+                                          font=30, width=22, height=1,
+                                          command=lambda: PDF(
+                                          ).show_file(r"pdfs/ElementsOfComputationalThinking/thinking_concurrently.pdf"))
+        thinking_concurrently.pack(padx=10, pady=30)
 
-        input_output_storage = tk.Button(self, text="Back to revision and quiz",
-                                         font=30, width=20, height=2,
-                                         command=lambda: controller.show_frame(Cs1))
-        input_output_storage.pack(padx=10, pady=30)
+        back_to_revise = tk.Button(self, text="Back to revision and quiz",
+                                   font=30, width=20, height=2,
+                                   command=lambda: controller.show_frame(ElementsOfComputationalThinking))
+        back_to_revise.pack(padx=10, pady=30)
 
 
-# ****************************************************************************
+class ProblemSolvingAndProgramming(tk.Frame):
+    def __init__(self, parent, controller):
+        tk.Frame.__init__(self, parent)
+        revise = tk.Button(self, text="revision", font=30, width=22, height=10,
+                           command=lambda: controller.show_frame(ReviseProblemSolvingAndProgramming))
+        revise.grid(row=0, column=0, pady=100)
+        quiz = tk.Button(self, text="quiz", font=30, width=22, height=10,
+                         command=lambda: Quiz("Quiz7", controller.user[0], 'quizes/Quiz7.json').run())
+        quiz.grid(row=0, column=1, padx=105, pady=100)
+
+        back_to_cs = tk.Button(self, text="Back to cs", font=30, width=22, height=10,
+                               command=lambda: controller.show_frame(Algorithms))
+        back_to_cs.place(x=150, y=370)
+
+
+class ReviseProblemSolvingAndProgramming(tk.Frame):
+    def __init__(self, parent, controller):
+        tk.Frame.__init__(self, parent)
+        programming_techniques = tk.Button(self, text="Programming techniques", font=30, width=22, height=3, command=lambda: PDF(
+        ).show_file(r"pdfs/ProblemSolvingAndProgramming/programming_techniques.pdf"))
+        programming_techniques.pack(padx=10, pady=30)
+        computational_methods = tk.Button(self, text="Computational methods", font=30, width=22, height=3,
+                                    command=lambda: PDF(
+                                    ).show_file(r"pdfs/ProblemSolvingAndProgramming/computational_methods.pdf"))
+        computational_methods.pack(padx=10, pady=30)
+
+        back_to_revise = tk.Button(self, text="Back to revision and quiz",
+                                   font=30, width=20, height=2,
+                                   command=lambda: controller.show_frame(ProblemSolvingAndProgramming))
+        back_to_revise.pack(padx=10, pady=30)
+
+
+class SubAlgorithms(tk.Frame):
+    def __init__(self, parent, controller):
+        tk.Frame.__init__(self, parent)
+        revise = tk.Button(self, text="revision", font=30, width=22, height=10,
+                           command=lambda: controller.show_frame(ReviseSubAlgorithms))
+        revise.grid(row=0, column=0, pady=100)
+        quiz = tk.Button(self, text="quiz", font=30, width=22, height=10,
+                         command=lambda: Quiz("Quiz8", controller.user[0], 'quizes/Quiz8.json').run())
+        quiz.grid(row=0, column=1, padx=105, pady=100)
+
+        back_to_cs = tk.Button(self, text="Back to cs", font=30, width=22, height=10,
+                               command=lambda: controller.show_frame(Algorithms))
+        back_to_cs.place(x=150, y=370)
+
+
+class ReviseSubAlgorithms(tk.Frame):
+    def __init__(self, parent, controller):
+        tk.Frame.__init__(self, parent)
+        algorithms_for_the_main_data_structures = tk.Button(self, text="Algorithms for the\n main data structures", font=30, width=22, height=2, command=lambda: PDF(
+        ).show_file(r"pdfs/SubAlgorithms/algorithms_for_the_main_data_structures.pdf"))
+        algorithms_for_the_main_data_structures.pack(padx=10, pady=30)
+        analysis_design_and_comparison_of_algorithms = tk.Button(self,
+                                                                 text="Analysis design and\n comparison of algorithms",
+                                                                 font=30, width=22, height=2,
+                                    command=lambda: PDF(
+                                    ).show_file(r"pdfs/SubAlgorithms/analysis_design_and_comparison_of_algorithms.pdf"))
+        analysis_design_and_comparison_of_algorithms.pack(padx=10, pady=30)
+        path_finding_algorithms = tk.Button(self, text="Path finding algorithms",
+                                    font=30, width=22, height=1,
+                                    command=lambda: PDF(
+                                    ).show_file(r"pdfs/SubAlgorithms/path_finding_algorithms.pdf"))
+        path_finding_algorithms.pack(padx=10, pady=30)
+        searching_algorithms = tk.Button(self, text="Searching algorithms",
+                                          font=30, width=22, height=1,
+                                          command=lambda: PDF(
+                                          ).show_file(r"pdfs/SubAlgorithms/searching_algorithms.pdf"))
+        searching_algorithms.pack(padx=10, pady=30)
+        sorting_algorithms = tk.Button(self, text="Sorting algorithms",
+                                          font=30, width=22, height=1,
+                                          command=lambda: PDF(
+                                          ).show_file(r"pdfs/SubAlgorithms/sorting_algorithms.pdf"))
+        sorting_algorithms.pack(padx=10, pady=30)
+
+        back_to_revise = tk.Button(self, text="Back to revision and quiz",
+                                   font=30, width=20, height=2,
+                                   command=lambda: controller.show_frame(SubAlgorithms))
+        back_to_revise.pack(padx=10, pady=30)
+
 
 GUI().mainloop()

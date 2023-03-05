@@ -38,9 +38,9 @@ drop = """DROP TABLE SCORES"""
 check_user = '''SELECT Username FROM USERS WHERE Username=?'''
 
 
-cursor_obj.execute(table_users)
-cursor_obj.execute(table_Quizes)
-cursor_obj.execute(table_scores)
-# cursor_obj.execute(delete_quizes)
+# cursor_obj.execute(table_users)
+# cursor_obj.execute(table_Quizes)
+# cursor_obj.execute(table_scores)
+cursor_obj.execute(delete_scores)
 connection_obj.commit()
 

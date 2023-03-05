@@ -1,0 +1,86 @@
+{
+  "questions": [
+    "What Indian city is the capital of two states?",
+    "Which city is the capital of India?",
+    "Smallest State of India?",
+    "Where is Taj Mahal Located?",
+    "How are you?",
+    "How old are you?",
+    "Are you single?",
+    "Do you like Math?",
+    "Are you a programmer?",
+    "Do you like freemasonry?",
+    "Are you Russian?"
+  ],
+  "answers": [
+    1,
+    2,
+    3,
+    2,
+    4,
+    3,
+    2,
+    1,
+    2,
+    4,
+    3
+  ],
+  "options": [
+
+    ["Chandigarh",
+      "Kolkata",
+      "Delhi",
+      "Bangalore"
+    ],
+    ["Jaipur",
+      "Delhi",
+      "Chennai",
+      "Mumbai"
+    ],
+    ["Rajasthan",
+      "Punjab",
+      "Goa",
+      "Bihar"
+    ],
+    ["Lucknow",
+      "Agra",
+      "Bhopal",
+      "Delhi"
+    ],
+    ["good",
+      "wow",
+      "No",
+      "Well"
+    ],
+    ["18",
+      "19",
+      "17",
+      "20"
+    ],
+    ["Not your business",
+      "Yes",
+      "No",
+      "Why do you ask?"
+    ],
+    ["Yes",
+      "No",
+      "it is okay, I guess",
+      "No comment"
+    ],
+    ["No",
+      "Yes",
+      "what is that?",
+      "okay"
+    ],
+    ["No",
+      "I like vodka",
+      "It is satanic, so no",
+      "Of course!"
+    ],
+    ["No",
+      "Yes",
+      "Slava Ukraine",
+      "what is Russia?"
+    ]
+  ]
+}
