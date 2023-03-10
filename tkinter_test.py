@@ -188,59 +188,118 @@ class Quiz(tk.Toplevel):
         self.correct = 0
         self.count = 0
         self.t = StringVar()
-        with open(self.data) as f:
-            info = json.load(f)
+        if self.quiz_title.startswith("Custom"):
+            self.questions = []
+            self.answers = []
+            self.options = []
+            for i in range(1, 9):
+                with open('quizzes/Quiz' + str(i) + ".json", "r") as x:
+                    info = json.load(x)
 
-        temp = list(zip(info['questions'], info['answers'], info['options']))
-        random.shuffle(temp)
-        questions, answers, options = zip(*temp)
-        self.questions = questions[:10]
-        self.answers = answers[:10]
-        self.options = options[:10]
-        # no of questions
-        self.data_size = len(self.questions)
+                    temp = list(zip(info['questions'], info['answers'], info['options']))
+                    random.shuffle(temp)
+                    questions, answers, options = zip(*temp)
+                    for y in range(5):
+                        self.questions.append(questions[y])
+                        self.answers.append(answers[y])
+                        self.options.append(options[y])
 
-        # dictionary of questions which were answered incorrectly
-        self.wrong_answered_questions = {
-            "questions": [],
-            "answers": [],
-            "options": []
-        }
+            self.data_size = len(self.questions)
 
-        get_quiz_id = """SELECT Quiz_ID FROM QUIZES WHERE Jason_file=?"""
-        self.quiz_id = cursor_obj.execute(get_quiz_id, (self.data,)).fetchone()[0]
-        # set question number to 0
-        self.q_no = 0
-        # opt_selected holds an integer value which is used for
-        # selected option in a question.
-        self.opt_selected = IntVar()
+            # set question number to 0
+            self.q_no = 0
+            # opt_selected holds an integer value which is used for
+            # selected option in a question.
+            self.opt_selected = IntVar()
 
-        super().__init__()
+            super().__init__()
+
+        else:
+
+            with open(self.data) as self.f:
+                self.info = json.load(self.f)
+
+            temp = list(zip(self.info['questions'], self.info['answers'], self.info['options']))
+            random.shuffle(temp)
+            if len(self.info["questions"]) == 0:
+                mb.showinfo("warning", "You didn't take this Quiz yet or maybe you had everything correctly!")
+
+            else:
+                questions, answers, options = zip(*temp)
+                if quiz_title.startswith("q"):
+
+                    self.questions = list(questions)
+                    self.answers = list(answers)
+                    self.options = list(options)
+                    with open("quizzes/Q" + self.data[18:]) as x:
+                        info2 = json.load(x)
+
+                    temp2 = list(zip(info2['questions'], info2['answers'], info2['options']))
+                    random.shuffle(temp2)
+                    questions, answers, options = zip(*temp2)
+                    x = 0
+                    while len(self.questions) < 10:
+
+                        if questions[x] not in self.questions:
+                            self.questions.append(questions[x])
+                            self.answers.append(answers[x])
+                            self.options.append(options[x])
+                        x += 1
+
+                    self.quiz_id = int(self.quiz_title[4])
+
+                else:
+                    self.questions = questions[:10]
+                    self.answers = answers[:10]
+                    self.options = options[:10]
+                    get_quiz_id = """SELECT Quiz_ID FROM QUIZES WHERE Jason_file=?"""
+                    print(cursor_obj.execute(get_quiz_id, (self.data,)).fetchone())
+                    self.quiz_id = cursor_obj.execute(get_quiz_id, (self.data,)).fetchone()[0]
+                # no of questions
+                self.data_size = len(self.questions)
+
+                # dictionary of questions which were answered incorrectly
+                self.wrong_answered_questions = {
+                    "questions": [],
+                    "answers": [],
+                    "options": []
+                }
+
+                # set question number to 0
+                self.q_no = 0
+                # opt_selected holds an integer value which is used for
+                # selected option in a question.
+                self.opt_selected = IntVar()
+
+                super().__init__()
 
     def run(self):
-        self.title(self.quiz_title)
-        self.geometry("900x700")
+        try:
+            self.title(self.quiz_title)
+            self.geometry("900x700")
 
-        # assigns ques to the display_question function to update later.
-        self.display_title()
-        self.display_question()
+            # assigns ques to the display_question function to update later.
+            self.display_title()
+            self.display_question()
 
-        # displaying radio button for the current question and used to
-        # display options for the current question
-        self.opts = self.radio_buttons()
+            # displaying radio button for the current question and used to
+            # display options for the current question
+            self.opts = self.radio_buttons()
 
-        # display options for the current question
-        self.display_options()
+            # display options for the current question
+            self.display_options()
 
-        # displays the button for next and exit.
-        self.buttons()
+            # displays the button for next and exit.
+            self.buttons()
 
-        self.t.set("00:00:00")
-        lb = Label(self, textvariable=self.t, font="Times 28 bold", bg="white")
-        lb.place(x=130, y=45)
-        self.timer()
+            self.t.set("00:00:00")
+            lb = Label(self, textvariable=self.t, font="Times 28 bold", bg="white")
+            lb.place(x=130, y=45)
+            self.timer()
 
-        self.mainloop()
+            self.mainloop()
+        except AttributeError:
+            pass
 
     def timer(self):
 
@@ -358,11 +417,27 @@ class Quiz(tk.Toplevel):
         if self.check_ans():
             # if the answer is correct it increments the correct by 1
             self.correct += 1
+            if self.quiz_title.startswith("quiz"):
+                num = self.quiz_title[4]
+                path = "rehearse_quizzes/quiz" + num + ".json"
+                with open(path, "r+") as f:
+                    info = json.load(f)
+                    if self.questions[self.q_no] in info["questions"]:
+                        del info["questions"][info["questions"].index(self.questions[self.q_no])]
+                        del info["answers"][info["answers"].index(self.answers[self.q_no])]
+                        del info["options"][info["options"].index(self.options[self.q_no])]
+                        # Sets file's current position at offset.
+                        f.seek(0)
+                        # convert back to json.
+                        json.dump(info, f, indent=4)
+                        f.truncate()
+
         else:
-            self.wrong_answered_questions["questions"].append(self.questions[self.q_no])
-            self.wrong_answered_questions["answers"].append(self.answers[self.q_no])
-            self.wrong_answered_questions["options"].append(self.options[self.q_no])
-            print(self.wrong_answered_questions)
+            if not self.quiz_title.startswith("Custom"):
+                self.wrong_answered_questions["questions"].append(self.questions[self.q_no])
+                self.wrong_answered_questions["answers"].append(self.answers[self.q_no])
+                self.wrong_answered_questions["options"].append(self.options[self.q_no])
+            # print(self.wrong_answered_questions)
 
         # Moves to next Question by incrementing the q_no counter
         self.q_no += 1
@@ -370,7 +445,8 @@ class Quiz(tk.Toplevel):
         if self.q_no == self.data_size:
 
             # if it is correct then it displays the score
-            self.display_result(self.quiz_id)
+
+            self.display_result()
 
             # destroys the GUI
             self.destroy()
@@ -386,7 +462,7 @@ class Quiz(tk.Toplevel):
             # if the option is correct it returns true
             return True
 
-    def display_result(self, quiz_id):
+    def display_result(self):
         # calculates the wrong count
         wrong_count = self.data_size - self.correct
         correct = f"Correct: {self.correct}"
@@ -396,22 +472,57 @@ class Quiz(tk.Toplevel):
         score = int(self.correct / self.data_size * 100)
         result = f"Score: {score}%"
 
-        if cursor_obj.execute('''SELECT * FROM SCORES WHERE Quiz_ID=? AND Username=?''',
-                              (quiz_id, self.user)).fetchone():
-            cursor_obj.execute('''UPDATE SCORES SET Correct=?, Wrong=? WHERE Username=?''',
-                               (self.correct, wrong_count, self.user,))
-            connection_obj.commit()
-        else:
+        if not self.quiz_title.startswith("Custom"):
 
-            cursor_obj.execute(''' INSERT INTO SCORES(Username, Correct, Wrong, Quiz_ID) VALUES(?,?,?,?) ''', (
-                self.user,
-                self.correct,
-                wrong_count,
-                quiz_id,
-            ))
-            connection_obj.commit()
+            if cursor_obj.execute('''SELECT * FROM SCORES WHERE Quiz_ID=? AND Username=?''',
+                                (self.quiz_id, self.user)).fetchone():
+                cursor_obj.execute('''UPDATE SCORES SET Correct=?, Wrong=? WHERE Username=? AND Quiz_ID=?''',
+                                (self.correct, wrong_count, self.user, self.quiz_id))
+                connection_obj.commit()
+                num = self.quiz_title[4]
+                path = "rehearse_quizzes/quiz" + num + ".json"
+                with open(path, 'r+') as file:
+                    # First we load existing data into a dict.
+                    file_data = json.load(file)
+                    # Join new_data with file_data inside questions, answers, options
+                    for i in range(len(self.wrong_answered_questions["questions"])):
+                        if self.wrong_answered_questions["questions"][i] not in file_data["questions"]:
+                            file_data["questions"].append(self.wrong_answered_questions["questions"][i])
+                            file_data["answers"].append(self.wrong_answered_questions["answers"][i])
+                            file_data["options"].append(self.wrong_answered_questions["options"][i])
+                    # Sets file's current position at offset.
+                    file.seek(0)
+                    # convert back to json.
+                    json.dump(file_data, file, indent=4)
 
-        print(self.wrong_answered_questions)
+            else:
+
+                cursor_obj.execute(''' INSERT INTO SCORES(Username, Correct, Wrong, Quiz_ID) VALUES(?,?,?,?) ''', (
+                    self.user,
+                    self.correct,
+                    wrong_count,
+                    self.quiz_id,
+                ))
+
+                connection_obj.commit()
+
+                num = self.quiz_title[4]
+                path = "rehearse_quizzes/quiz" + num + ".json"
+                with open(path, 'r+') as file:
+                    # First we load existing data into a dict.
+                    file_data = json.load(file)
+                    # Join new_data with file_data inside questions, answers, options
+                    for i in range(len(self.wrong_answered_questions["questions"])):
+                        if self.wrong_answered_questions["questions"][i] not in file_data["questions"]:
+                            file_data["questions"].append(self.wrong_answered_questions["questions"][i])
+                            file_data["answers"].append(self.wrong_answered_questions["answers"][i])
+                            file_data["options"].append(self.wrong_answered_questions["options"][i])
+                    # Sets file's current position at offset.
+                    file.seek(0)
+                    # convert back to json.
+                    json.dump(file_data, file, indent=4)
+
+                    print(self.wrong_answered_questions)
         mb.showinfo("Result", f"{result}\n{correct}\n{wrong}")
 
 
@@ -504,7 +615,7 @@ class Profile(tk.Frame):
         variable = StringVar()
         variable.set("Quizes")  # default value
 
-        w = OptionMenu(self, variable, "Quiz1", "Quiz2", "Quiz3",
+        w = OptionMenu(self, variable, "Quiz1", "Quiz2", "Quiz3", "Quiz4", "Quiz5", "Quiz6", "Quiz7", "Quiz8",
                        command=lambda choice: controller.display_selected(variable.get()))
         w.pack()
 
@@ -515,14 +626,20 @@ class Profile(tk.Frame):
         progress_bar = ttk.Progressbar(self, orient="horizontal", mode="determinate", length=300, value=progress_num)
         progress_bar.pack(padx=10, pady=10)
 
-        # rehearse_quiz_variable = StringVar()
-        # rehearse_quiz_variable.set("Rehearse Quizes")
+        rehearse_quiz_variable = StringVar()
+        rehearse_quiz_variable.set("Rehearse Quizes")
 
         # rehearse the quiz by doing the wrong questions
-        # w2 = OptionMenu(self, rehearse_quiz_variable, "rehearse_Quiz1", "rehearse_Quiz2", "rehearse_Quiz3",
-        #               command=lambda choice: Quiz(rehearse_quiz_variable.get(), controller.user[0],
-        #                                           "rehearse_quizes/" + rehearse_quiz_variable.get() + ".json").run())
-        # w2.pack()
+
+        w2 = OptionMenu(self, rehearse_quiz_variable, "quiz1", "quiz2", "quiz3", "quiz4", "quiz5", "quiz6", "quiz7", "quiz8",
+                    command=lambda choice: Quiz(rehearse_quiz_variable.get(), controller.user[0],
+                                                "rehearse_quizzes/" + rehearse_quiz_variable.get() + ".json").run())
+        w2.pack()
+
+        custom_quiz = tk.Button(self, text="Custom Quiz", command=lambda: Quiz("Custom Quiz",
+                                                                               controller.user[0],
+                                                                               "quizzes/custom_quiz.json").run())
+        custom_quiz.pack(padx=10, pady=40)
 
         back_to_main = tk.Button(self, text="Back to Main Page", command=lambda: controller.show_frame(MainPage))
         back_to_main.pack(padx=10, pady=40)
@@ -594,7 +711,7 @@ class CharacteristicsOfContemporaryProcessors(tk.Frame):
                            command=lambda: controller.show_frame(ReviseCharacteristicsOfContemporaryProcessors))
         revise.grid(row=0, column=0, pady=100)
         quiz = tk.Button(self, text="quiz", font=30, width=22, height=10,
-                         command=lambda: Quiz("Quiz1", controller.user[0], 'quizes/Quiz1.json').run())
+                         command=lambda: Quiz("Quiz1", controller.user[0], 'quizzes/Quiz1.json').run())
         quiz.grid(row=0, column=1, padx=105, pady=100)
 
         back_to_cs = tk.Button(self, text="Back to cs", font=30, width=22, height=10,
@@ -634,7 +751,7 @@ class SoftwareAndSoftwareDevelopment(tk.Frame):
                             command=lambda: controller.show_frame(ReviseSoftwareAndSoftwareDevelopment))
         revise.grid(row=0, column=0, pady=100)
         quiz = tk.Button(self, text="quiz", font=30, width=22, height=10,
-                            command=lambda: Quiz("Quiz2", controller.user[0], 'quizes/Quiz2.json').run())
+                            command=lambda: Quiz("Quiz2", controller.user[0], 'quizzes/Quiz2.json').run())
         quiz.grid(row=0, column=1, padx=105, pady=100)
 
         back_to_cs = tk.Button(self, text="Back to cs", font=30, width=22, height=10,
@@ -680,7 +797,7 @@ class ExchangingData(tk.Frame):
                             command=lambda: controller.show_frame(ReviseExchangingData))
         revise.grid(row=0, column=0, pady=100)
         quiz = tk.Button(self, text="quiz", font=30, width=22, height=10,
-                            command=lambda: Quiz("Quiz3", controller.user[0], 'quizes/Quiz3.json').run())
+                            command=lambda: Quiz("Quiz3", controller.user[0], 'quizzes/Quiz3.json').run())
         quiz.grid(row=0, column=1, padx=105, pady=100)
 
         back_to_cs = tk.Button(self, text="Back to cs", font=30, width=22, height=10,
@@ -720,7 +837,7 @@ class DataTypes(tk.Frame):
                             command=lambda: controller.show_frame(ReviseDataTypes))
         revise.grid(row=0, column=0, pady=100)
         quiz = tk.Button(self, text="quiz", font=30, width=22, height=10,
-                            command=lambda: Quiz("Quiz4", controller.user[0], 'quizes/Quiz4.json').run())
+                            command=lambda: Quiz("Quiz4", controller.user[0], 'quizzes/Quiz4.json').run())
         quiz.grid(row=0, column=1, padx=105, pady=100)
 
         back_to_cs = tk.Button(self, text="Back to cs", font=30, width=22, height=10,
@@ -760,7 +877,7 @@ class Issues(tk.Frame):
                            command=lambda: controller.show_frame(ReviseDataTypes))
         revise.grid(row=0, column=0, pady=100)
         quiz = tk.Button(self, text="quiz", font=30, width=22, height=10,
-                         command=lambda: Quiz("Quiz5", controller.user[0], 'quizes/Quiz5.json').run())
+                         command=lambda: Quiz("Quiz5", controller.user[0], 'quizzes/Quiz5.json').run())
         quiz.grid(row=0, column=1, padx=105, pady=100)
 
         back_to_cs = tk.Button(self, text="Back to cs", font=30, width=22, height=10,
@@ -812,7 +929,7 @@ class ElementsOfComputationalThinking(tk.Frame):
                            command=lambda: controller.show_frame(ReviseElementsOfComputationalThinking))
         revise.grid(row=0, column=0, pady=100)
         quiz = tk.Button(self, text="quiz", font=30, width=22, height=10,
-                         command=lambda: Quiz("Quiz6", controller.user[0], 'quizes/Quiz6.json').run())
+                         command=lambda: Quiz("Quiz6", controller.user[0], 'quizzes/Quiz6.json').run())
         quiz.grid(row=0, column=1, padx=105, pady=100)
 
         back_to_cs = tk.Button(self, text="Back to cs", font=30, width=22, height=10,
@@ -859,7 +976,7 @@ class ProblemSolvingAndProgramming(tk.Frame):
                            command=lambda: controller.show_frame(ReviseProblemSolvingAndProgramming))
         revise.grid(row=0, column=0, pady=100)
         quiz = tk.Button(self, text="quiz", font=30, width=22, height=10,
-                         command=lambda: Quiz("Quiz7", controller.user[0], 'quizes/Quiz7.json').run())
+                         command=lambda: Quiz("Quiz7", controller.user[0], 'quizzes/Quiz7.json').run())
         quiz.grid(row=0, column=1, padx=105, pady=100)
 
         back_to_cs = tk.Button(self, text="Back to cs", font=30, width=22, height=10,
@@ -891,7 +1008,7 @@ class SubAlgorithms(tk.Frame):
                            command=lambda: controller.show_frame(ReviseSubAlgorithms))
         revise.grid(row=0, column=0, pady=100)
         quiz = tk.Button(self, text="quiz", font=30, width=22, height=10,
-                         command=lambda: Quiz("Quiz8", controller.user[0], 'quizes/Quiz8.json').run())
+                         command=lambda: Quiz("Quiz8", controller.user[0], 'quizzes/Quiz8.json').run())
         quiz.grid(row=0, column=1, padx=105, pady=100)
 
         back_to_cs = tk.Button(self, text="Back to cs", font=30, width=22, height=10,

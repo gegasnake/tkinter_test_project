@@ -1,0 +1,24 @@
+{
+    "questions": [
+        "Smallest State of India?",
+        "Do you like Math?"
+    ],
+    "answers": [
+        3,
+        1
+    ],
+    "options": [
+        [
+            "Rajasthan",
+            "Punjab",
+            "Goa",
+            "Bihar"
+        ],
+        [
+            "Yes",
+            "No",
+            "it is okay, I guess",
+            "No comment"
+        ]
+    ]
+}
