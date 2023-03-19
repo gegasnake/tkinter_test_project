@@ -113,9 +113,11 @@ class GUI(tk.Tk):
             correct = cursor_obj.execute(correct_query, (self.user[0], int(choice[-1]))).fetchone()[0]
             wrong_query = """SELECT Wrong FROM SCORES WHERE Username=? AND Quiz_ID=? ORDER BY Score_ID  DESC LIMIT 1"""
             wrong = cursor_obj.execute(wrong_query, (self.user[0], int(choice[-1]))).fetchone()[0]
+            time_query = """SELECT time FROM SCORES WHERE username=? AND Quiz_ID=? ORDER BY Score_ID DESC LIMIT 1"""
+            time = cursor_obj.execute(time_query, (self.user[0], int(choice[-1]))).fetchone()[0]
             score = int(correct / 10 * 100)
             result = f"Score: {score}%"
-            mb.showinfo("Result", f"{result}\n{correct}\n{wrong}")
+            mb.showinfo("Result", f"{result}\n{correct}\n{wrong}\n{time}")
         else:
             mb.showinfo("Hello user!", "You haven't taken this Quiz yet.")
 
@@ -476,8 +478,8 @@ class Quiz(tk.Toplevel):
 
             if cursor_obj.execute('''SELECT * FROM SCORES WHERE Quiz_ID=? AND Username=?''',
                                 (self.quiz_id, self.user)).fetchone():
-                cursor_obj.execute('''UPDATE SCORES SET Correct=?, Wrong=? WHERE Username=? AND Quiz_ID=?''',
-                                (self.correct, wrong_count, self.user, self.quiz_id))
+                cursor_obj.execute('''UPDATE SCORES SET Correct=?, Wrong=?, time=? WHERE Username=? AND Quiz_ID=?''',
+                                (self.correct, wrong_count, self.t.get(), self.user, self.quiz_id))
                 connection_obj.commit()
                 num = self.quiz_title[4]
                 path = "rehearse_quizzes/quiz" + num + ".json"
@@ -497,11 +499,12 @@ class Quiz(tk.Toplevel):
 
             else:
 
-                cursor_obj.execute(''' INSERT INTO SCORES(Username, Correct, Wrong, Quiz_ID) VALUES(?,?,?,?) ''', (
+                cursor_obj.execute(''' INSERT INTO SCORES(Username, Correct, Wrong, Quiz_ID, time) VALUES(?,?,?,?,?) ''', (
                     self.user,
                     self.correct,
                     wrong_count,
                     self.quiz_id,
+                    self.t.get(),
                 ))
 
                 connection_obj.commit()
@@ -523,7 +526,7 @@ class Quiz(tk.Toplevel):
                     json.dump(file_data, file, indent=4)
 
                     print(self.wrong_answered_questions)
-        mb.showinfo("Result", f"{result}\n{correct}\n{wrong}")
+        mb.showinfo("Result", f"{result}\n{correct}\n{wrong}\n{self.t.get()}")
 
 
 class PageRegister(tk.Frame):

@@ -26,6 +26,7 @@ table_scores = """ CREATE TABLE IF NOT EXISTS SCORES(
                 Correct INT NOT NULL,
                 Wrong INT NOT NULL,
                 Quiz_ID INT,
+                time TEXT NOT NULL,
                 FOREIGN KEY (Quiz_ID) references QUIZES(Quiz_ID)
                 )
 """
